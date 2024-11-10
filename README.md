@@ -81,10 +81,6 @@ create stream incoming_units (unit_erp_id varchar, name varchar, imei varchar, p
 ```
 
 ```
-create stream incoming_units_groups (group_id varchar, name varchar, pu varchar, changed timestamp) with (kafka_topic='units_groups', value_format='avro');
-```
-
-```
 create stream incoming_raw_messages (imei varchar, lat double, lon double, created timestamp) with (kafka_topic='raw_messages', value_format='avro');
 ```
 
@@ -101,7 +97,7 @@ inner join incoming_units within 5 minutes grace period 1 minutes on incoming_un
 partition by incoming_raw_messages.imei;
 ```
 
-В Kafka Connector необходимо создать три Synk-коннектора со следующими настройками:
+В Kafka Connect необходимо создать три Synk-коннектора со следующими настройками:
 
 ```
 {
