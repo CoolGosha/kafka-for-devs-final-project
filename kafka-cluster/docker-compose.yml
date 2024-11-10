@@ -1,0 +1,269 @@
+services:
+  #Составляем кластер Zookeeper из трёх нод
+  zookeeper-1:
+    #используем сборку от confluent. Аналогична ванильной kafka версии 3.4.0
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper-1
+    restart: always
+    #user: root
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      #тик-тайм для внутренних процессов Зукипера для отслеживания таймаутов, heartbeat и т.д. Измеряется в мс.
+      ZOOKEEPER_TICK_TIME: 2000
+      #в этом файле задаётся внутренний пользователь для взаимодействия нод зукипера друг с другом
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/zookeeper_server_jaas.conf"
+      #отключаем standalone режим
+      ZOOKEEPER_STANDALONE_ENABLED: "false**"
+      ZOOKEEPER_SERVERS: zookeeper-1:2888:3888;zookeeper-2:2889:3889;zookeeper-3:2899:3899
+    volumes:
+      - ./for_zoo/zookeeper_server_jaas.conf:/etc/kafka/zookeeper_server_jaas.conf:ro
+
+  zookeeper-2:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper-2
+    #user: root
+    restart: always
+    ports:
+      - '2182:2181'
+    environment:
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/zookeeper_server_jaas.conf"
+      ZOOKEEPER_STANDALONE_ENABLED: "false**"
+      ZOOKEEPER_SERVERS: zookeeper-1:2888:3888;zookeeper-2:2889:3889;zookeeper-3:2899:3899
+    volumes:
+      - ./for_zoo/zookeeper_server_jaas.conf:/etc/kafka/zookeeper_server_jaas.conf:ro
+
+  zookeeper-3:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper-3
+    #user: root
+    restart: always
+    ports:
+      - '2183:2181'
+    environment:
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/zookeeper_server_jaas.conf"
+      ZOOKEEPER_STANDALONE_ENABLED: "false**"
+      ZOOKEEPER_SERVERS: zookeeper-1:2888:3888;zookeeper-2:2889:3889;zookeeper-3:2899:3899
+    volumes:
+      - ./for_zoo/zookeeper_server_jaas.conf:/etc/kafka/zookeeper_server_jaas.conf:ro
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper-1:2181'
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 3
+      SCHEMA_REGISTRY_LISTENERS: http://schema-registry:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-broker-2:9092,PLAINTEXT_INTERNAL://${host_ip}:29092
+
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka-broker-1
+    container_name: kafka-broker-1
+    restart: always
+    depends_on: 
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "19092:19092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,PLAINTEXT_INTERNAL://${host_ip}:19092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka-broker-2
+    container_name: kafka-broker-2
+    restart: always
+    depends_on: 
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:9092,PLAINTEXT_INTERNAL://${host_ip}:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka-broker-3
+    container_name: kafka-broker-3
+    restart: always
+    depends_on: 
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "39092:39092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:9092,PLAINTEXT_INTERNAL://${host_ip}:39092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+
+  akhq:
+    image: tchiotludo/akhq:0.25.1
+    hostname: web-ui
+    depends_on: 
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ports:
+      - '8086:8086'
+    container_name: web-ui
+    restart: always
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            kafka-cluster:
+              properties:
+                bootstrap.servers: "kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092"
+              schema-registry:
+                url: http://schema-registry:8081
+              connect:
+                - name: kafka-connect
+                  url: http://${host_ip}:8083
+        micronaut:
+          server:
+            port: "8086"
+
+  ksqldb-server:
+    image: confluentinc/ksqldb-server:0.28.2
+    hostname: ksqldb-server
+    container_name: ksqldb-server
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+      - schema-registry
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092"
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+      KSQL_KSQL_SERVICE_ID: "slurm_"
+
+  ksqldb-cli:
+    image: confluentinc/ksqldb-cli:0.28.2
+    container_name: ksqldb-cli
+    depends_on:
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+    
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.4.0
+    restart: always
+    container_name: kafka-connect
+    hostname:  kafka-connect
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+      - schema-registry
+    ports:
+      - '8083:8083'
+    environment:
+      # JVM Tune
+      KAFKA_HEAP_OPTS: "-XX:MetaspaceSize=96m -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:G1HeapRegionSize=16M -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
+      CONNECT_LOG4J_APPENDER_STDOUT_LAYOUT_CONVERSIONPATTERN: "[%d] %p %X{connector.context}%m (%c:%L)%n"
+      CONNECT_BOOTSTRAP_SERVERS: "kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092"
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://${host_ip}:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://${host_ip}:8081
+      CONNECT_LISTENERS: http://kafka-connect:8083
+      CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_ADVERTISED_PORT: 8083
+      CONNECT_GROUP_ID: connect-group-01
+      CONNECT_CONFIG_STORAGE_TOPIC: "_connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "_connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "_connect-status"
+      CONNECT_KEY_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_FLUSH_TIMEOUT_MS: 60000
+      CONNECT_PLUGIN_PATH: '/usr/share/java,/data/connectors/,/usr/share/confluent-hub-components/'
+
+      # Connect Producer configs ## https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html
+      CONNECT_PRODUCER_BATCH_SIZE: 16384 #32768
+      CONNECT_PRODUCER_LINGER_MS: 10
+      CONNECT_PRODUCER_MAX_REQUEST_SIZE: 1000012
+      CONNECT_PRODUCER_BUFFER_MEMORY: 33554432 #67108864
+      CONNECT_WORKER_SYNC_TIMEOUT_MS: 60000
+      CONNECT_WORKER_UNSYNC_BACKOFF_MS: 30000
+
+      # Connect Consumer configs ## https://docs.confluent.io/platform/current/installation/configuration/consumer-configs.html
+      CONNECT_CONSUMER_MAX_POLL_RECORDS: 200 # Default 500
+      CONNECT_CONSUMER_SESSION_TIMEOUT_MS: 30000
+      CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS: 10000
+      CONNECT_CONSUMER_MAX_PARTITION_FETCH_BYTES: 1000012 # 1048576
+      CONNECT_CONSUMER_MAX_POLL_INTERVAL_MS: 600000
+      CONNECT_CONSUMER_ENABLE_AUTO_COMMIT: "false"
+      # Default = true enable.auto.commit
+
+    volumes:
+      - ./data:/data/
+    command:
+      - /bin/bash
+      - -c
+      - |
+        mkdir -p /usr/share/java/kafka-connect-jdbc/
+        #echo "Downloading JDBC drivers". Примеры установки плагинов из confluent-hub: confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
+        sleep infinity &
+        /etc/confluent/docker/run
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500k"
+        max-file: "5"
+
+  kafka-connect-ui:
+    image: landoop/kafka-connect-ui:0.9.7
+    restart: always
+    ports:
+      - '8000:8000'
+    container_name: kafka-connect-ui
+    environment:
+      CONNECT_URL: http://kafka-connect:8083;connect-testing1

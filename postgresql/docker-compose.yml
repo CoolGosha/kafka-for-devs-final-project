@@ -1,0 +1,41 @@
+services:
+  postgres:
+    container_name: postgres_container
+    hostname: postgres_container
+    image: postgres:14.8-alpine3.18
+    environment:
+      POSTGRES_DB: "pvom_db"
+      POSTGRES_USER: "test_user"
+      POSTGRES_PASSWORD: "test_pwd"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - ./Init Database:/docker-entrypoint-initdb.d
+      - test_db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - postgres
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4:8.11
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "test_kafka-connect_bd@mail.ru"
+      PGADMIN_DEFAULT_PASSWORD: "default_pwd"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    networks:
+      - postgres
+
+volumes:
+  test_db-data:
+  pgadmin-data:
+
+networks:
+  postgres:
+    driver: bridge

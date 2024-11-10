@@ -1,0 +1,9 @@
+contexts:
+  default:
+    brokers:
+    - 192.168.81.253:19092
+    - 192.168.81.253:29092
+    - 192.168.81.253:39092
+    avro:
+      schemaRegistry: 192.168.81.253:8081
+current-context: default
