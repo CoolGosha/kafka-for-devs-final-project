@@ -21,7 +21,58 @@ docker-compose up -d
 - units
 - units_groups
 
-все топики создаются с фактором репликации 3, для топика raw_messages retention.ms необходимо установить 1800000 (30 минут), для всех остальных оставить по умолчанию 1 сутки.
+Все топики создаются с фактором репликации 3, для топика raw_messages retention.ms необходимо установить 1800000 (30 минут), для всех остальных оставить по умолчанию 1 сутки.
+
+Avro схемы для всех топиков будут создаваться автоматически из продюсеров и kSQL, кроме схемы для топика units_groups. Её нужно создать вручную, например, через интерфейс AKHQ со следующими параметрами:
+
+- Subject: `units_groups-value`
+- Schema:
+```
+{
+  "type": "record",
+  "name": "UnitGroup",
+  "fields": [
+    {
+      "name": "group_id",
+      "type": "string"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "pu",
+      "type": "string"
+    },
+    {
+      "name": "changed",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    }
+  ]
+}
+```
+
+Для заполнения топика units_groups предлагаю воспользоваться kafkactl.
+Для этого нужно сначала создать контейнер kafkactl, выполняющий consume таким образом:
+
+```
+docker run -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl-config.yml:/etc/kafkactl/config.yml -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl-units_groups.txt:/home/kafkactl/kafkactl-units_groups.txt deviceinsight/kafkactl:latest consume messages
+```
+
+Затем нужно выйти из выполняемого процесса, запустить созданный контейнер (он может иметь любое имя, оно присваивается автоматически). Далее надо зайти в консоль этого контейнера (вместо eager_thompson надо ввести имя контейнера):
+
+```
+docker exec -it eager_thompson bash
+```
+
+И после этого уже ввести команду kafkactl produce с файлом, переданным в контейнер:
+
+```
+cat kafkactl-units_groups.txt | kafkactl produce units_groups --separator=#
+```
 
 В kSQL необходимо создать следующие стримы:
 
