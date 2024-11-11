@@ -59,7 +59,7 @@ Avro схемы для всех топиков будут создаваться
 Для этого нужно сначала создать контейнер kafkactl, выполняющий consume таким образом:
 
 ```
-docker run -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl-config.yml:/etc/kafkactl/config.yml -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl-units_groups.txt:/home/kafkactl/kafkactl-units_groups.txt deviceinsight/kafkactl:latest consume messages
+docker run -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl\kafkactl-config.yml:/etc/kafkactl/config.yml -v D:\Clouds\YandexDisk\KafkaForDevs\exam\kafkactl\kafkactl-units_groups.txt:/home/kafkactl/kafkactl-units_groups.txt deviceinsight/kafkactl:latest consume messages
 ```
 
 Затем нужно выйти из выполняемого процесса, запустить созданный контейнер (он может иметь любое имя, оно присваивается автоматически). Далее надо зайти в консоль этого контейнера (вместо eager_thompson надо ввести имя контейнера):
